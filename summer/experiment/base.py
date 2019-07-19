@@ -80,7 +80,7 @@ class ExperimentBase:
             pbs3.git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip().replace("'", "").replace('"', "")
         )
         if self.valid_dataset == self.test_dataset and self.max_validation_samples >= len(self.test_dataset):
-                raise ValueError("no samples for testing left")
+            raise ValueError("no samples for testing left")
 
     def test(self):
         self.max_num_epochs = 0
@@ -151,9 +151,9 @@ class ExperimentBase:
         # data_loader_iter = iter(train_loader)
         # x, y = next(data_loader_iter)
         # try:
-        #     writer.add_graph(self.model, x.to(torch.device("cuda")))
+        #     writer.add_graph(self.models, x.to(torch.device("cuda")))
         # except Exception as e:
-        #     self.logger.warning("Failed to save model graph...")
+        #     self.logger.warning("Failed to save models graph...")
         #     self.logger.exception(e)
 
         # ignite
@@ -167,7 +167,7 @@ class ExperimentBase:
             loss = self.loss_fn(y_pred, y)
             loss.backward()
             optimizer.step()
-            return {X_NAME: x, Y_NAME: y, Y_PRED_NAME: y_pred, LOSS_NAME: loss.item()}
+            return {X_NAME: x, Y_NAME: y, Y_PRED_NAME: y_pred, LOSS_NAME: loss}
 
         trainer = Engine(training_step)
         trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
@@ -180,7 +180,7 @@ class ExperimentBase:
                 y = convert_tensor(y, device=device, non_blocking=False)
                 y_pred = self.model(x)
                 loss = self.loss_fn(y_pred, y)
-                return {X_NAME: x, Y_NAME: y, Y_PRED_NAME: y_pred, LOSS_NAME: loss.item()}
+                return {X_NAME: x, Y_NAME: y, Y_PRED_NAME: y_pred, LOSS_NAME: loss}
 
         class EngineWithMode(Engine):
             def __init__(self, process_function, modes: Sequence[str]):
@@ -212,32 +212,36 @@ class ExperimentBase:
             create_dir=True,
             save_as_state_dict=True,
         )
-        evaluator.add_event_handler(Events.COMPLETED, saver, {"model": self.model})
+        evaluator.add_event_handler(Events.COMPLETED, saver, {"models": self.model})
         stopper = EarlyStopping(patience=10, score_function=self.score_function, trainer=trainer)
         evaluator.add_event_handler(Events.COMPLETED, stopper)
 
+        # Loss(loss_fn=lambda loss, _: loss, output_transform=lambda out: (out[LOSS_NAME], out[X_NAME])).attach(
+        #     trainer, LOSS_NAME
+        # )
         Loss(loss_fn=lambda loss, _: loss, output_transform=lambda out: (out[LOSS_NAME], out[X_NAME])).attach(
             evaluator, LOSS_NAME
         )
-        Accuracy(output_transform=lambda out: (out[Y_PRED_NAME], out[Y_NAME])).attach(evaluator, ACCURACY_NAME)
+        # Accuracy(output_transform=lambda out: (out[Y_PRED_NAME], out[Y_NAME]), is_multilabel=True).attach(trainer, ACCURACY_NAME)
+        Accuracy(output_transform=lambda out: (out[Y_PRED_NAME], out[Y_NAME]), is_multilabel=True).attach(evaluator, ACCURACY_NAME)
 
-        result_saver = ResultSaver(TEST, self.log_config.log_dir / "test-result", "seg")
+        result_saver = ResultSaver(TEST, file_path=self.log_config.log_dir / "test-result")
+
         @evaluator.on(Events.ITERATION_COMPLETED)
         def export_result(engine: EngineWithMode):
             result_saver.save(engine.mode, batch=engine.state.output[Y_PRED_NAME], at=engine.state.iteration - 1)
 
         def log_scalars(engine: Engine, name: str, step: int):
-            met = engine.state.metrics
-            writer.add_scalar(f"{name}/Loss", met[LOSS_NAME], step)
-            writer.add_scalar(f"{name}/Accuracy", met[ACCURACY_NAME], step)
+            # met = engine.state.metrics
+            writer.add_scalar(f"{name}/Loss", engine.state.output[LOSS_NAME].item(), step)
+            # writer.add_scalar(f"{name}/Accuracy", met[ACCURACY_NAME], step)
 
         def log_images(engine: Engine, name: str, step: int):
             x_batch = engine.state.output[X_NAME].cpu().numpy()
             y_batch = engine.state.output[Y_NAME].cpu().numpy()
             y_pred_batch = engine.state.output[Y_PRED_NAME].detach().cpu().numpy()
             assert x_batch.shape[0] == y_batch.shape[0], (x_batch.shape, y_batch.shape)
-            assert len(y_batch.shape) == 5, y_batch.shape
-            assert y_batch.shape[1] == 1, y_batch.shape
+            assert len(y_batch.shape) == 3, y_batch.shape
 
             fig, ax = plt.subplots(
                 nrows=x_batch.shape[0], ncols=4, squeeze=False, figsize=(4 * 3, x_batch.shape[0] * 3)
@@ -264,9 +268,9 @@ class ExperimentBase:
                     ax[0, 3].set_title("diff")
 
                 make_subplot(ax[i, 0], xx[0])
-                make_subplot(ax[i, 1], yy[0])
+                make_subplot(ax[i, 1], yy)
                 make_subplot(ax[i, 2], pp[0])
-                make_subplot(ax[i, 3], (pp == yy)[0])
+                make_subplot(ax[i, 3], numpy.equal(pp.argmax(axis=1), yy))
 
             plt.tight_layout()
 
@@ -303,7 +307,7 @@ class ExperimentBase:
                 self.logger.info(
                     "Training Results  -  Epoch: %d  Avg loss: %.3f",
                     engine.state.epoch,
-                    evaluator.state.metrics[LOSS_NAME],
+                    evaluator.state.metrics[LOSS_NAME].item(),
                 )
                 log_eval(evaluator, TRAINING, engine.state.epoch)
 
@@ -313,7 +317,7 @@ class ExperimentBase:
                 self.logger.info(
                     "Validation Results - Epoch: %d  Avg loss: %.3f",
                     engine.state.epoch,
-                    evaluator.state.metrics[LOSS_NAME],
+                    evaluator.state.metrics[LOSS_NAME].item(),
                 )
                 log_eval(evaluator, VALIDATION, engine.state.epoch)
 
@@ -322,7 +326,9 @@ class ExperimentBase:
             evaluator.mode = TEST
             evaluator.run(test_loader)
             self.logger.info(
-                "Test Results    -    Epoch: %d  Avg loss: %.3f", engine.state.epoch, evaluator.state.metrics[LOSS_NAME]
+                "Test Results    -    Epoch: %d  Avg loss: %.3f",
+                engine.state.epoch,
+                evaluator.state.metrics[LOSS_NAME].item(),
             )
             log_eval(evaluator, TEST, engine.state.epoch)
 

@@ -1,11 +1,12 @@
+import logging
+import torch
 import urllib.request
+
 from io import BytesIO
 from pathlib import Path
-from typing import Tuple, Callable
-
-import torch
 from PIL import Image
 from torch.utils.data import Dataset
+from typing import Tuple, Callable
 from zipfile import ZipFile
 
 
@@ -21,6 +22,7 @@ class CellTrackingChallengeDataset(Dataset):
     ):
         self.transform = transform
         folder = self.download_link.split("/")[-1].replace(".zip", "/")
+        self.logger = logging.getLogger(folder)
         self.path: Path = Path(__file__).parent.parent / "data" / folder
         if not (self.path).exists():
             with urllib.request.urlopen(self.download_link) as response, ZipFile(BytesIO(response.read())) as zipf:

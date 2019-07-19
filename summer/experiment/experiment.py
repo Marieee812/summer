@@ -1,5 +1,12 @@
-from PIL import Image
+import torch
+import torch.nn
+import torch.optim
+import torch.utils.data
 import torchvision.transforms.functional as TF
+
+from pathlib import Path
+from PIL import Image
+from typing import Optional, Tuple
 
 from summer.datasets import (
     DIC_C2DH_HeLa,
@@ -11,20 +18,8 @@ from summer.datasets import (
     Fluo_N2DH_SIM,
     CellTrackingChallengeDataset,
 )
-
-import torch
-import torch.nn
-import torch.optim
-import torch.utils.data
-
-from pathlib import Path
-from typing import Optional, Tuple
-
-
 from summer.experiment.base import ExperimentBase, eps_for_precision, LOSS_NAME
-from summer.model.unet import UNet
-
-torch_dtype_to_inferno = {torch.float: "float", torch.float32: "float", torch.half: "half", torch.float16: "half"}
+from summer.models.unet import UNet
 
 
 class Experiment(ExperimentBase):
@@ -58,11 +53,13 @@ class Experiment(ExperimentBase):
     def train_transform(self, img: Image.Image, seg: Image.Image) -> Tuple[torch.Tensor, torch.LongTensor]:
         # Image.FLIP_LEFT_RIGHT, Image.FLIP_TOP_BOTTOM, Image.ROTATE_90, Image.ROTATE_180, Image.ROTATE_270 or Image.TRANSPOSE
         img, seg = TF.to_tensor(img), TF.to_tensor(seg)
+        assert seg.shape[0] == 1, seg.shape  # assuming singleton channel axis
+        seg = (seg[0] != 0)
         return img.to(dtype=self.precision), seg.to(dtype=torch.long)
 
     def eval_transform(self, img: Image.Image, seg: Image.Image) -> Tuple[torch.Tensor, torch.LongTensor]:
         img, seg = TF.to_tensor(img), TF.to_tensor(seg)
-        return img.to(dtype=self.precision), seg.to(dtype=torch.long)
+        return img.to(dtype=self.precision), (seg != 0).to(dtype=torch.long)
 
     def score_function(self, engine):
         val_loss = engine.state.metrics[LOSS_NAME]
@@ -70,5 +67,6 @@ class Experiment(ExperimentBase):
 
 
 def run():
+    assert torch.cuda.device_count() <= 1, "visible cuda devices not limited!"
     exp = Experiment()
     exp.run()
