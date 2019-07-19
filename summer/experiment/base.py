@@ -52,26 +52,22 @@ class LogConfig:
 class ExperimentBase:
     model: torch.nn.Module
 
-    batch_size: int
-    eval_batch_size: int
-
     train_dataset: CellTrackingChallengeDataset
     valid_dataset: CellTrackingChallengeDataset
     test_dataset: Optional[CellTrackingChallengeDataset]
+    max_validation_samples: int
 
-    train_transforms: List[Union[str, Transform]]
-    valid_transforms: List[Union[str, Transform]]
-    test_transforms: List[Union[str, Transform]]
-
+    batch_size: int
+    eval_batch_size: int
     precision: torch.dtype
     loss_fn: torch.nn.Module
     optimizer_cls: Type[torch.optim.Optimizer]
     optimizer_kwargs: Dict[str, Any]
-
     max_num_epochs: int
-    score_function: Callable[[Engine], float]
 
     model_checkpoint: Optional[Path]
+
+    score_function: Callable[[Engine], float]
 
     def __init__(self):
         self.log_config = LogConfig()
@@ -83,6 +79,8 @@ class ExperimentBase:
         self.branch_name = (
             pbs3.git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip().replace("'", "").replace('"', "")
         )
+        if self.valid_dataset == self.test_dataset and self.max_validation_samples >= len(self.test_dataset):
+                raise ValueError("no samples for testing left")
 
     def test(self):
         self.max_num_epochs = 0
@@ -128,9 +126,14 @@ class ExperimentBase:
                 batch_size=self.eval_batch_size,
                 pin_memory=True,
                 num_workers=16,
-                sampler=SubsetSequentialSampler(range(min(10, len(self.valid_dataset)))),
+                sampler=SubsetSequentialSampler(range(min(self.max_validation_samples, len(self.valid_dataset)))),
             )
         )
+        if self.valid_dataset == self.test_dataset:
+            test_sampler = SubsetSequentialSampler(range(self.max_validation_samples, len(self.test_dataset)))
+        else:
+            test_sampler = SubsetSequentialSampler(range(len(self.test_dataset)))
+
         test_loader = (
             None
             if self.test_dataset is None
@@ -139,7 +142,7 @@ class ExperimentBase:
                 batch_size=self.eval_batch_size,
                 pin_memory=True,
                 num_workers=16,
-                sampler=SubsetSequentialSampler(range(len(self.test_dataset))),
+                sampler=test_sampler,
             )
         )
 

@@ -1,8 +1,9 @@
 import urllib.request
 from io import BytesIO
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Callable
 
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from zipfile import ZipFile
@@ -11,7 +12,14 @@ from zipfile import ZipFile
 class CellTrackingChallengeDataset(Dataset):
     download_link: str
 
-    def __init__(self, one=True, two=False, labeled_only=True):
+    def __init__(
+        self,
+        one: bool,
+        two: bool,
+        labeled_only: bool,
+        transform: Callable[[Image.Image, Image.Image], Tuple[torch.Tensor, torch.LongTensor]],
+    ):
+        self.transform = transform
         folder = self.download_link.split("/")[-1].replace(".zip", "/")
         self.path: Path = Path(__file__).parent.parent / "data" / folder
         if not (self.path).exists():
@@ -38,12 +46,12 @@ class CellTrackingChallengeDataset(Dataset):
     def __len__(self):
         return self._len
 
-    def __getitem__(self, item: int) -> Tuple[Image.Image, Image.Image]:
+    def __getitem__(self, item: int) -> Tuple[torch.Tensor, torch.LongTensor]:
         original_item = item
         for i, idx in enumerate(self.indices):
             if item < len(idx):
                 folder = self.folder_names[i]
-                return (
+                return self.transform(
                     Image.open(self.path / folder / f"t{idx[item]:03}.tif"),
                     Image.open(self.path / f"{folder}_GT/SEG/man_seg{idx[item]:03}.tif"),
                 )
