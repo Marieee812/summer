@@ -1,12 +1,12 @@
 import logging
-import os
-from dataclasses import dataclass
-
 import matplotlib.pyplot as plt
 import numpy
+import os
 import pbs3
 import torch.nn
+import torchvision.transforms.functional as TF
 
+from dataclasses import dataclass
 from datetime import datetime
 from ignite.engine import Events, Engine
 from ignite.handlers import ModelCheckpoint, EarlyStopping, TerminateOnNan
@@ -14,12 +14,13 @@ from ignite.metrics import Loss, Accuracy
 from ignite.utils import convert_tensor
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pathlib import Path
+from PIL import Image
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
 from typing import Optional, Dict, Callable, Type, Any, Tuple, Sequence
-from PIL import Image
 
 from summer.datasets import CellTrackingChallengeDataset
+from summer.utils.stat import DatasetStat
 
 eps_for_precision = {torch.half: 1e-4, torch.float: 1e-8}
 
@@ -43,18 +44,16 @@ class LogConfig:
     log_scalars_every: Tuple[int, str] = (1, "iterations")
     log_images_every: Tuple[int, str] = (1, "epochs")
 
-    # send_image_at_batch_indices: Optional[Tuple[int]] = None
-    # send_image_at_z_indices: Optional[Tuple[int]] = (0, 5, 10, -1)
-    # send_image_at_channel_indices: Optional[Tuple[int]] = (0,)
-
 
 class ExperimentBase:
     model: torch.nn.Module
+    depth: int
 
     train_dataset: CellTrackingChallengeDataset
     valid_dataset: CellTrackingChallengeDataset
     test_dataset: Optional[CellTrackingChallengeDataset]
     max_validation_samples: int
+    only_eval_where_true: bool
 
     batch_size: int
     eval_batch_size: int
@@ -80,6 +79,26 @@ class ExperimentBase:
         )
         if self.valid_dataset == self.test_dataset and self.max_validation_samples >= len(self.test_dataset):
             raise ValueError("no samples for testing left")
+
+    def to_tensor(self, img: Image.Image, seg: Image.Image, stat: DatasetStat) -> Tuple[torch.Tensor, torch.Tensor]:
+        img: torch.Tensor = TF.to_tensor(img)
+        seg: torch.Tensor = TF.to_tensor(seg)
+        assert img.shape == seg.shape, (img.shape, seg.shape)
+        assert seg.shape[0] == 1, seg.shape  # assuming singleton channel axis
+        cut1 = img.shape[1] % 2 ** self.depth
+        if cut1:
+            img = img[:, cut1 // 2 : -((cut1 + 1) // 2)]
+            seg = seg[:, cut1 // 2 : -((cut1 + 1) // 2)]
+
+        cut2 = img.shape[2] % 2 ** self.depth
+        if cut2:
+            img = img[:, :, cut2 // 2 : -((cut2 + 1) // 2)]
+            seg = seg[:, :, cut2 // 2 : -((cut2 + 1) // 2)]
+
+        img = img.clamp(stat.x_min, stat.x_max)
+        img = TF.normalize(img, mean=[stat.x_mean], std=[stat.x_std])
+
+        return img.to(dtype=self.precision), (seg[0] != 0).to(dtype=self.precision)
 
     def test(self):
         self.max_num_epochs = 0
@@ -147,13 +166,15 @@ class ExperimentBase:
 
         # tensorboardX
         writer = SummaryWriter(log_dir=self.log_config.log_dir.as_posix())
-        # data_loader_iter = iter(train_loader)
-        # x, y = next(data_loader_iter)
-        # try:
-        #     writer.add_graph(self.models, x.to(torch.device("cuda")))
-        # except Exception as e:
-        #     self.logger.warning("Failed to save models graph...")
-        #     self.logger.exception(e)
+        x, y = self.train_dataset[0]
+        try:
+            model_device = next(self.model.parameters(True)).get_device()
+            if model_device >= 0:
+                x = x.to(device=model_device)
+            writer.add_graph(self.model, x)
+        except Exception as e:
+            self.logger.warning("Failed to save models graph...")
+            # self.logger.exception(e)
 
         # ignite
         def training_step(engine, batch):
@@ -178,13 +199,18 @@ class ExperimentBase:
             self.model.eval()
             with torch.no_grad():
                 x, y = batch
-                x = convert_tensor(x, device=device, non_blocking=False)
-                y = convert_tensor(y, device=device, non_blocking=False)
+                x: torch.Tensor = convert_tensor(x, device=device, non_blocking=False)
+                y: torch.Tensor = convert_tensor(y, device=device, non_blocking=False)
                 y_pred = self.model(x)
                 assert len(y_pred.shape) == 4, "assuming 4dim model output: NCHW"
                 assert y_pred.shape[1] == 1, "assuming singleton channel axis in model output"
                 y_pred = y_pred.squeeze(dim=1)
-                loss = self.loss_fn(y_pred, y)
+                if self.only_eval_where_true:
+                    mask = y.eq(1)
+                else:
+                    mask = ...
+
+                loss = self.loss_fn(y_pred[mask], y[mask])
                 return {X_NAME: x, Y_NAME: y, Y_PRED_NAME: y_pred, LOSS_NAME: loss}
 
         class EngineWithMode(Engine):
@@ -246,30 +272,39 @@ class ExperimentBase:
             )
             fig.subplots_adjust(hspace=0, wspace=0, bottom=0, top=1, left=0, right=1)
 
-            def make_subplot(ax, img):
-                im = ax.imshow(img)
+            def make_subplot(ax, img, cb=True):
+                im = ax.imshow(img.astype(numpy.float))
                 ax.set_xticklabels([])
                 ax.set_yticklabels([])
                 ax.axis("off")
-                # from https://stackoverflow.com/questions/18195758/set-matplotlib-colorbar-size-to-match-graph
-                # create an axes on the right side of ax. The width of cax will be 5%
-                # of ax and the padding between cax and ax will be fixed at 0.05 inch.
-                divider = make_axes_locatable(ax)
-                cax = divider.append_axes("right", size="3%", pad=0.03)
-                fig.colorbar(im, cax=cax)
+                if cb:
+                    # from https://stackoverflow.com/questions/18195758/set-matplotlib-colorbar-size-to-match-graph
+                    # create an axes on the right side of ax. The width of cax will be 5%
+                    # of ax and the padding between cax and ax will be fixed at 0.05 inch.
+                    divider = make_axes_locatable(ax)
+                    cax = divider.append_axes("right", size="3%", pad=0.03)
+                    fig.colorbar(im, cax=cax)
 
             for i, (xx, yy, pp) in enumerate(zip(x_batch, y_batch, y_pred_batch)):
                 if i == 0:
                     ax[0, 0].set_title("input")
                     ax[0, 1].set_title("target")
                     ax[0, 2].set_title("output")
-                    ax[0, 3].set_title("diff")
+                    ax[0, 3].set_title("correct")
 
                 make_subplot(ax[i, 0], xx[0])
                 make_subplot(ax[i, 1], yy)
                 pp_prob = 1 / (1 + numpy.exp(-pp))
                 make_subplot(ax[i, 2], pp_prob)
-                make_subplot(ax[i, 3], numpy.equal(pp > 0, yy).astype(numpy.uint8) * 255)
+                pp = pp > 0
+                correct = numpy.equal(pp, yy)
+                if self.only_eval_where_true:
+                    mask = numpy.logical_not(yy)
+                else:
+                    mask = numpy.zeros_like(pp)
+
+                wrong = numpy.logical_not(numpy.logical_or(correct, mask))
+                make_subplot(ax[i, 3], numpy.stack([wrong, correct, mask], axis=-1), cb=False)
 
             plt.tight_layout()
 

@@ -25,6 +25,9 @@ class CellTrackingChallengeDataset(Dataset):
         labeled_only: bool,
         transform: Callable[[Image.Image, Image.Image, DatasetStat], Tuple[torch.Tensor, torch.Tensor]],
     ):
+        if not (one or two):
+            raise ValueError("No subdataset selected. Choose 'one' and/or 'two'")
+
         folder = self.download_link.split("/")[-1].replace(".zip", "/")
         self.logger = logging.getLogger(folder)
         self.path: Path = Path(__file__).parent.parent / "data" / folder

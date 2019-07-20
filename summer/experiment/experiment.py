@@ -1,4 +1,5 @@
-import numpy
+import random
+
 import torch
 import torch.nn
 import torch.optim
@@ -34,53 +35,55 @@ class Experiment(ExperimentBase):
 
         self.depth = 3
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=6, padding=True, batch_norm=False, up_mode="upsample"
+            in_channels=1, n_classes=1, depth=self.depth, wf=5, padding=True, batch_norm=False, up_mode="upsample"
         )
 
-        self.train_dataset = Fluo_C2DL_MSC(one=False, two=True, labeled_only=True, transform=self.train_transform)
-        eval_ds = Fluo_N2DL_HeLa(one=True, two=False, labeled_only=True, transform=self.eval_transform)
-
-        self.valid_dataset = eval_ds
-        self.test_dataset = eval_ds if test_dataset is None else test_dataset
+        self.train_dataset = Fluo_N2DH_SIM(one=True, two=True, labeled_only=True, transform=self.train_transform)
+        self.valid_dataset = Fluo_N2DH_GOWT1(one=True, two=False, labeled_only=True, transform=self.eval_transform)
+        test_ds = Fluo_N2DH_GOWT1(one=False, two=True, labeled_only=True, transform=self.eval_transform)
+        self.test_dataset = test_ds if test_dataset is None else test_dataset
         self.max_validation_samples = 3
+        self.only_eval_where_true = False
 
         self.batch_size = 1
         self.eval_batch_size = 1
         self.precision = torch.float
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.optimizer_cls = torch.optim.Adam
-        self.optimizer_kwargs = {"lr": 1e-3, "eps": eps_for_precision[self.precision]}
-        self.max_num_epochs = 1
+        self.optimizer_kwargs = {"lr": 3e-4, "eps": eps_for_precision[self.precision]}
+        self.max_num_epochs = 10
 
         self.model_checkpoint = model_checkpoint
 
         super().__init__()
 
-    def to_tensor(self, img: Image.Image, seg: Image.Image, stat: DatasetStat) -> Tuple[torch.Tensor, torch.Tensor]:
-        img: torch.Tensor = TF.to_tensor(img)
-        seg: torch.Tensor = TF.to_tensor(seg)
-        assert img.shape == seg.shape, (img.shape, seg.shape)
-        assert seg.shape[0] == 1, seg.shape  # assuming singleton channel axis
-        cut1 = img.shape[1] % 2 ** self.depth
-        if cut1:
-            img = img[:, cut1 // 2 : -((cut1 + 1) // 2)]
-            seg = seg[:, cut1 // 2 : -((cut1 + 1) // 2)]
-
-        cut2 = img.shape[2] % 2 ** self.depth
-        if cut2:
-            img = img[:, :, cut2 // 2 : -((cut2 + 1) // 2)]
-            seg = seg[:, :, cut2 // 2 : -((cut2 + 1) // 2)]
-
-        img = img.clamp(stat.x_min, stat.x_max)
-        img = TF.normalize(img, mean=[stat.x_mean], std=[stat.x_std])
-
-        return img.to(dtype=self.precision), (seg[0] != 0).to(dtype=self.precision)
-
     def train_transform(
         self, img: Image.Image, seg: Image.Image, stat: DatasetStat
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        # Image.FLIP_LEFT_RIGHT, Image.FLIP_TOP_BOTTOM, Image.ROTATE_90, Image.ROTATE_180, Image.ROTATE_270 or Image.TRANSPOSE
-        return self.to_tensor(img, seg, stat)
+        tmethod = random.choice(
+            [
+                Image.FLIP_LEFT_RIGHT,
+                Image.FLIP_TOP_BOTTOM,
+                Image.ROTATE_90,
+                Image.ROTATE_180,
+                Image.ROTATE_270,
+                Image.TRANSPOSE,
+            ]
+        )
+        img = img.transpose(tmethod)
+        seg = seg.transpose(tmethod)
+
+        img, seg = self.to_tensor(img, seg, stat)
+
+        if self.precision == torch.half and img.get_device() == -1:
+            # meager support for cpu half tensor
+            img = img.to(dtype=torch.float)
+            img += torch.zeros_like(img).normal_(std=0.1)
+            img = img.to(dtype=self.precision)
+        else:
+            img += torch.zeros_like(img).normal_(std=0.1)
+
+        return img, seg
 
     def eval_transform(
         self, img: Image.Image, seg: Image.Image, stat: DatasetStat
