@@ -84,7 +84,8 @@ class UNetUpBlock(nn.Module):
             self.up = nn.ConvTranspose2d(in_size, out_size, kernel_size=2, stride=2)
         elif up_mode == "upsample":
             self.up = nn.Sequential(
-                nn.Upsample(mode="bilinear", scale_factor=2), nn.Conv2d(in_size, out_size, kernel_size=1)
+                nn.Upsample(mode="bilinear", scale_factor=2, align_corners=True),
+                nn.Conv2d(in_size, out_size, kernel_size=1),
             )
 
         self.conv_block = UNetConvBlock(in_size, out_size, padding, batch_norm)

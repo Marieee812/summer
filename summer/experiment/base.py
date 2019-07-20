@@ -12,12 +12,11 @@ from ignite.engine import Events, Engine
 from ignite.handlers import ModelCheckpoint, EarlyStopping, TerminateOnNan
 from ignite.metrics import Loss, Accuracy
 from ignite.utils import convert_tensor
-from inferno.io.transform import Transform
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from pathlib import Path
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
-from typing import Union, Optional, List, Dict, Callable, Type, Any, Tuple, Sequence
+from typing import Optional, Dict, Callable, Type, Any, Tuple, Sequence
 from PIL import Image
 
 from summer.datasets import CellTrackingChallengeDataset
@@ -164,6 +163,9 @@ class ExperimentBase:
             x = convert_tensor(x, device=device, non_blocking=False)
             y = convert_tensor(y, device=device, non_blocking=False)
             y_pred = self.model(x)
+            assert len(y_pred.shape) == 4, "assuming 4dim model output: NCHW"
+            assert y_pred.shape[1] == 1, "assuming singleton channel axis in model output"
+            y_pred = y_pred.squeeze(dim=1)
             loss = self.loss_fn(y_pred, y)
             loss.backward()
             optimizer.step()
@@ -179,6 +181,9 @@ class ExperimentBase:
                 x = convert_tensor(x, device=device, non_blocking=False)
                 y = convert_tensor(y, device=device, non_blocking=False)
                 y_pred = self.model(x)
+                assert len(y_pred.shape) == 4, "assuming 4dim model output: NCHW"
+                assert y_pred.shape[1] == 1, "assuming singleton channel axis in model output"
+                y_pred = y_pred.squeeze(dim=1)
                 loss = self.loss_fn(y_pred, y)
                 return {X_NAME: x, Y_NAME: y, Y_PRED_NAME: y_pred, LOSS_NAME: loss}
 
@@ -216,25 +221,18 @@ class ExperimentBase:
         stopper = EarlyStopping(patience=10, score_function=self.score_function, trainer=trainer)
         evaluator.add_event_handler(Events.COMPLETED, stopper)
 
-        # Loss(loss_fn=lambda loss, _: loss, output_transform=lambda out: (out[LOSS_NAME], out[X_NAME])).attach(
-        #     trainer, LOSS_NAME
-        # )
         Loss(loss_fn=lambda loss, _: loss, output_transform=lambda out: (out[LOSS_NAME], out[X_NAME])).attach(
             evaluator, LOSS_NAME
         )
-        # Accuracy(output_transform=lambda out: (out[Y_PRED_NAME], out[Y_NAME]), is_multilabel=True).attach(trainer, ACCURACY_NAME)
-        Accuracy(output_transform=lambda out: (out[Y_PRED_NAME], out[Y_NAME]), is_multilabel=True).attach(evaluator, ACCURACY_NAME)
+        Accuracy(output_transform=lambda out: (out[Y_PRED_NAME] > 0, out[Y_NAME]), is_multilabel=False).attach(
+            evaluator, ACCURACY_NAME
+        )
 
-        result_saver = ResultSaver(TEST, file_path=self.log_config.log_dir / "test-result")
+        result_saver = ResultSaver(TEST, file_path=self.log_config.log_dir / "results")
 
         @evaluator.on(Events.ITERATION_COMPLETED)
         def export_result(engine: EngineWithMode):
             result_saver.save(engine.mode, batch=engine.state.output[Y_PRED_NAME], at=engine.state.iteration - 1)
-
-        def log_scalars(engine: Engine, name: str, step: int):
-            # met = engine.state.metrics
-            writer.add_scalar(f"{name}/Loss", engine.state.output[LOSS_NAME].item(), step)
-            # writer.add_scalar(f"{name}/Accuracy", met[ACCURACY_NAME], step)
 
         def log_images(engine: Engine, name: str, step: int):
             x_batch = engine.state.output[X_NAME].cpu().numpy()
@@ -269,22 +267,27 @@ class ExperimentBase:
 
                 make_subplot(ax[i, 0], xx[0])
                 make_subplot(ax[i, 1], yy)
-                make_subplot(ax[i, 2], pp[0])
-                make_subplot(ax[i, 3], numpy.equal(pp.argmax(axis=1), yy))
+                pp_prob = 1 / (1 + numpy.exp(-pp))
+                make_subplot(ax[i, 2], pp_prob)
+                make_subplot(ax[i, 3], numpy.equal(pp > 0, yy).astype(numpy.uint8) * 255)
 
             plt.tight_layout()
 
             writer.add_figure(f"{name}/in_out", fig, step)
 
         def log_eval(engine: Engine, name: str, step: int):
-            log_scalars(engine=engine, name=name, step=step)
+            met = engine.state.metrics
+            writer.add_scalar(f"{name}/{LOSS_NAME}", met[LOSS_NAME], step)
+            writer.add_scalar(f"{name}/{ACCURACY_NAME}", met[ACCURACY_NAME], step)
             log_images(engine=engine, name=name, step=step)
 
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_training_iteration(engine: Engine):
             i = (engine.state.iteration - 1) % len(train_loader)
             if self.log_config.log_scalars_every[1] == "iterations" and i % self.log_config.log_scalars_every[0] == 0:
-                log_scalars(engine, IN_TRAINING, engine.state.iteration)
+                writer.add_scalar(
+                    f"{IN_TRAINING}/{LOSS_NAME}", engine.state.output[LOSS_NAME].item(), engine.state.iteration
+                )
 
             if self.log_config.log_images_every[1] == "iterations" and i % self.log_config.log_images_every[0] == 0:
                 log_images(engine, IN_TRAINING, engine.state.iteration)
@@ -293,7 +296,7 @@ class ExperimentBase:
         def log_training_epoch(engine: Engine):
             epoch = engine.state.epoch
             if self.log_config.log_scalars_every[1] == "epochs" and epoch % self.log_config.log_scalars_every[0] == 0:
-                log_scalars(engine, IN_TRAINING, epoch)
+                writer.add_scalar(f"{IN_TRAINING}/{LOSS_NAME}", engine.state.output[LOSS_NAME].item(), epoch)
 
             if self.log_config.log_images_every[1] == "epochs" and epoch % self.log_config.log_images_every[0] == 0:
                 log_images(engine, IN_TRAINING, epoch)
@@ -307,7 +310,7 @@ class ExperimentBase:
                 self.logger.info(
                     "Training Results  -  Epoch: %d  Avg loss: %.3f",
                     engine.state.epoch,
-                    evaluator.state.metrics[LOSS_NAME].item(),
+                    evaluator.state.metrics[LOSS_NAME],
                 )
                 log_eval(evaluator, TRAINING, engine.state.epoch)
 
@@ -317,7 +320,7 @@ class ExperimentBase:
                 self.logger.info(
                     "Validation Results - Epoch: %d  Avg loss: %.3f",
                     engine.state.epoch,
-                    evaluator.state.metrics[LOSS_NAME].item(),
+                    evaluator.state.metrics[LOSS_NAME],
                 )
                 log_eval(evaluator, VALIDATION, engine.state.epoch)
 
@@ -326,9 +329,7 @@ class ExperimentBase:
             evaluator.mode = TEST
             evaluator.run(test_loader)
             self.logger.info(
-                "Test Results    -    Epoch: %d  Avg loss: %.3f",
-                engine.state.epoch,
-                evaluator.state.metrics[LOSS_NAME].item(),
+                "Test Results    -    Epoch: %d  Avg loss: %.3f", engine.state.epoch, evaluator.state.metrics[LOSS_NAME]
             )
             log_eval(evaluator, TEST, engine.state.epoch)
 
@@ -364,8 +365,8 @@ class ResultSaver:
         if name not in self.folders:
             return
 
-        batch = batch.detach().cpu().numpy()
-        assert len(batch.shape) == 4 or len(batch.shape) == 5, batch.shape
-        batch = (batch.clip(min=0, max=1) * numpy.iinfo(numpy.uint16).max).astype(numpy.uint16)
+        batch = torch.sigmoid(batch.detach()).cpu().numpy()
+        assert len(batch.shape) == 3, batch.shape
+        batch = (batch * numpy.iinfo(numpy.uint8).max).astype(numpy.uint8)
         for i, img in enumerate(batch, start=at):
             Image.fromarray(img).save(self.folders[name] / f"seg{i:04}.tif")
