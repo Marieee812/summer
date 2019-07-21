@@ -65,7 +65,7 @@ class FreeGPUTracker:
         return both or now
 
 
-def _run_in_clean_lab(remote_url: str, full_hash: str, cuda_id: int) -> None:
+def _run_in_clean_lab(remote_url: str, add_in_name: str, full_hash: str, cuda_id: int) -> None:
     """
     note: using `git --git-dir tmp_repo_dir` in order not to change global working directory. (Alternatively subprocess
           might be used, but concurrent.futures.ProcessPoolExecutor apparently shares the working directory across
@@ -89,7 +89,7 @@ def _run_in_clean_lab(remote_url: str, full_hash: str, cuda_id: int) -> None:
             test_env[PYTHON_PATH_NAME] = os.path.join(lab, repo_name) + os.pathsep + test_env.get(PYTHON_PATH_NAME, "")
             test_env[CUDA_VISIBLE_DEVICES_NAME] = str(cuda_id)
 
-            cmd = ["python", "-c", "import summer;summer.run()"]
+            cmd = ["python", "-c", f'import summer;summer.run("{add_in_name}")']
             out = subprocess.run(
                 cmd, env=test_env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True
             )
@@ -233,11 +233,16 @@ def experimenter(
                         continue
 
                     bn, full_hash = commits_to_run.popleft()
-                    remote_url = pbs3.git.remote("get-url", bn.split("/")[0]).strip()
+                    bn_wo_remote_name = bn.split("/")[0]
+                    remote_url = pbs3.git.remote("get-url", bn_wo_remote_name).strip()
                     assert not remote_url.startswith("http"), "use ssh address 'git@...'"
                     print(f"submit for gpu {cuda_id}")
                     a_fut = executor.submit(
-                        _run_in_clean_lab, remote_url=remote_url, full_hash=full_hash, cuda_id=cuda_id
+                        _run_in_clean_lab,
+                        remote_url=remote_url,
+                        add_in_name=bn_wo_remote_name,
+                        full_hash=full_hash,
+                        cuda_id=cuda_id,
                     )
                     a_fut.cuda_id = cuda_id
                     futs.add(a_fut)
