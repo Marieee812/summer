@@ -42,8 +42,8 @@ class Experiment(ExperimentBase):
         self.valid_dataset = Fluo_N2DH_GOWT1(one=True, two=False, labeled_only=True, transform=self.eval_transform)
         test_ds = Fluo_N2DH_GOWT1(one=False, two=True, labeled_only=True, transform=self.eval_transform)
         self.test_dataset = test_ds if test_dataset is None else test_dataset
-        self.max_validation_samples = 3
-        self.only_eval_where_true = False
+        self.max_validation_samples = 10
+        self.only_eval_where_true = True
 
         self.batch_size = 1
         self.eval_batch_size = 1
@@ -51,7 +51,7 @@ class Experiment(ExperimentBase):
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.optimizer_cls = torch.optim.Adam
         self.optimizer_kwargs = {"lr": 3e-4, "eps": eps_for_precision[self.precision]}
-        self.max_num_epochs = 10
+        self.max_num_epochs = 50
 
         self.model_checkpoint = model_checkpoint
 

@@ -173,7 +173,7 @@ class ExperimentBase:
                 x = x.to(device=model_device)
             writer.add_graph(self.model, x)
         except Exception as e:
-            self.logger.warning("Failed to save models graph...")
+            self.logger.warning("Failed to save model graph...")
             # self.logger.exception(e)
 
         # ignite
