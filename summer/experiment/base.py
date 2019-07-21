@@ -1,4 +1,6 @@
 import logging
+from enum import Enum
+
 import matplotlib.pyplot as plt
 import numpy
 import os
@@ -166,17 +168,20 @@ class ExperimentBase:
 
         # tensorboardX
         writer = SummaryWriter(log_dir=self.log_config.log_dir.as_posix())
-        x, y = self.train_dataset[0]
-        try:
-            model_device = next(self.model.parameters(True)).get_device()
-            if model_device >= 0:
-                x = x.to(device=model_device)
-            writer.add_graph(self.model, x)
-        except Exception as e:
-            self.logger.warning("Failed to save model graph...")
-            # self.logger.exception(e)
+        # x, y = self.train_dataset[0]
+        # try:
+        #     model_device = next(self.model.parameters(True)).get_device()
+        #     if model_device >= 0:
+        #         x = x.to(device=model_device)
+        #     writer.add_graph(self.model, x)
+        # except Exception as e:
+        #     self.logger.warning("Failed to save model graph...")
+        #     # self.logger.exception(e)
 
         # ignite
+        class CustomEvents(Enum):
+            VALIDATION_DONE = "validation_done_event"
+
         def training_step(engine, batch):
             self.model.train()
             optimizer.zero_grad()
@@ -234,6 +239,7 @@ class ExperimentBase:
                     self._mode = new_mode
 
         evaluator = EngineWithMode(inference_step, modes=[TRAINING, VALIDATION, TEST])
+        evaluator.register_events(*CustomEvents)
         evaluator.mode = TRAINING
         saver = ModelCheckpoint(
             (self.log_config.log_dir / "models").as_posix(),
@@ -243,9 +249,9 @@ class ExperimentBase:
             create_dir=True,
             save_as_state_dict=True,
         )
-        evaluator.add_event_handler(Events.COMPLETED, saver, {"models": self.model})
+        evaluator.add_event_handler(CustomEvents.VALIDATION_DONE, saver, {"models": self.model})
         stopper = EarlyStopping(patience=10, score_function=self.score_function, trainer=trainer)
-        evaluator.add_event_handler(Events.COMPLETED, stopper)
+        evaluator.add_event_handler(CustomEvents.VALIDATION_DONE, stopper)
 
         Loss(loss_fn=lambda loss, _: loss, output_transform=lambda out: (out[LOSS_NAME], out[X_NAME])).attach(
             evaluator, LOSS_NAME
@@ -358,6 +364,7 @@ class ExperimentBase:
                     evaluator.state.metrics[LOSS_NAME],
                 )
                 log_eval(evaluator, VALIDATION, engine.state.epoch)
+                evaluator.fire_event(CustomEvents.VALIDATION_DONE)
 
         @trainer.on(Events.COMPLETED)
         def test(engine: Engine):

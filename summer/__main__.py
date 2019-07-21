@@ -21,8 +21,8 @@ CONFIG = {
         }
     },
     "loggers": {
-        "": {"handlers": ["default"], "level": "WARNING", "propagate": True},
-        "summer": {"handlers": ["default"], "level": "DEBUG", "propagate": False},
+        "": {"handlers": ["default"], "level": "INFO", "propagate": True},
+        "summer": {"handlers": ["default"], "level": "INFO", "propagate": False},
     },
 }
 logging.config.dictConfig(CONFIG)
