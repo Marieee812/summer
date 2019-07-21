@@ -233,14 +233,13 @@ def experimenter(
                         continue
 
                     bn, full_hash = commits_to_run.popleft()
-                    bn_wo_remote_name = bn.split("/")[0]
-                    remote_url = pbs3.git.remote("get-url", bn_wo_remote_name).strip()
+                    remote_url = pbs3.git.remote("get-url", bn.split("/")[0]).strip()
                     assert not remote_url.startswith("http"), "use ssh address 'git@...'"
                     print(f"submit for gpu {cuda_id}")
                     a_fut = executor.submit(
                         _run_in_clean_lab,
                         remote_url=remote_url,
-                        add_in_name=bn_wo_remote_name,
+                        add_in_name=bn.split("/")[1],
                         full_hash=full_hash,
                         cuda_id=cuda_id,
                     )
