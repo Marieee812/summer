@@ -65,13 +65,13 @@ class FreeGPUTracker:
         return both or now
 
 
-def _run_in_clean_lab(remote_name: str, full_hash: str, cuda_id: int) -> None:
+def _run_in_clean_lab(remote_url: str, full_hash: str, cuda_id: int) -> None:
     """
     note: using `git --git-dir tmp_repo_dir` in order not to change global working directory. (Alternatively subprocess
           might be used, but concurrent.futures.ProcessPoolExecutor apparently shares the working directory across
           processes)
 
-    :param remote_name: e.g. 'origin'
+    :param remote_url: of git repo
     :param full_hash: 'git commit hash to be run from'
     """
     with TemporaryDirectory() as lab:
@@ -79,9 +79,9 @@ def _run_in_clean_lab(remote_name: str, full_hash: str, cuda_id: int) -> None:
         logger.debug("running in clean lab: %s", lab)
         try:
             repo_name = f"summer_{full_hash}"
-            pbs3.git.clone("--recurse-submodules", "-j8", "git@github.com:kreshuklab/summer.git", repo_name)
+            pbs3.git.clone("--recurse-submodules", "-j8", remote_url, repo_name)
             os.chdir(repo_name)
-            pbs3.git("fetch", remote_name, full_hash)
+            pbs3.git("fetch", "origin", full_hash)
             pbs3.git("checkout", "--force", full_hash)
             pbs3.git("submodule", "update", "--recursive")
 
@@ -100,8 +100,8 @@ def _run_in_clean_lab(remote_name: str, full_hash: str, cuda_id: int) -> None:
 
             msg = out.stdout.decode("utf-8").replace("'", '"')
             pbs3.git("tag", "-a", tag, "-m", f"'{msg}'", full_hash)
-            pbs3.git("push", remote_name, tag)
-            logger.debug("pushed tag '%s' to '%s' at %s", tag, remote_name, full_hash)
+            pbs3.git("push", "origin", tag)
+            logger.debug("pushed tag '%s' to '%s' at %s", tag, "origin", full_hash)
         except Exception as e:
             logger.exception(e)
             raise e
@@ -142,10 +142,9 @@ def experimenter(
     ) as executor:
         logger.debug("working in %s", repo_dir)
         os.chdir(repo_dir)
-        # git clone --recurse-submodules -j8 git@github.com:kreshuklab/summer.git summer_experimenter
-        pbs3.git.clone(
-            "--recurse-submodules", "-j8", "git@github.com:kreshuklab/summer.git", "summer_experimenter"
-        )
+        remote_url = pbs3.git.remote("get-url", remote_branches[0].split("/")[0])
+        assert not remote_url.startswith("http"), "use ssh address 'git@...'"
+        pbs3.git.clone("--recurse-submodules", "-j8", remote_url, "summer_experimenter")
         os.chdir("summer_experimenter")
 
         futs: Set[Future] = set()
@@ -233,9 +232,11 @@ def experimenter(
                         continue
 
                     bn, full_hash = commits_to_run.popleft()
+                    remote_url = pbs3.git.remote("get-url", bn.split("/")[0])
+                    assert not remote_url.startswith("http"), "use ssh address 'git@...'"
                     print(f"submit for gpu {cuda_id}")
                     a_fut = executor.submit(
-                        _run_in_clean_lab, remote_name=bn.split("/")[0], full_hash=full_hash, cuda_id=cuda_id
+                        _run_in_clean_lab, remote_url=remote_url, full_hash=full_hash, cuda_id=cuda_id
                     )
                     a_fut.cuda_id = cuda_id
                     futs.add(a_fut)
