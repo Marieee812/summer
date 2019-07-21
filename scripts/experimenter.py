@@ -123,6 +123,9 @@ def experimenter(
     :param rerun_failed: whether or not to rerun previously failed experiments
     :return:
     """
+    remote_url = pbs3.git.remote("get-url", remote_branches[0].split("/")[0]).strip()
+    assert not remote_url.startswith("http"), "use ssh address 'git@...'"
+
     cuda_devices = os.environ.get(CUDA_VISIBLE_DEVICES_NAME, None)
     if cuda_devices is None:
         raise Exception(f"{CUDA_VISIBLE_DEVICES_NAME} not set")
@@ -142,8 +145,6 @@ def experimenter(
     ) as executor:
         logger.debug("working in %s", repo_dir)
         os.chdir(repo_dir)
-        remote_url = pbs3.git.remote("get-url", remote_branches[0].split("/")[0])
-        assert not remote_url.startswith("http"), "use ssh address 'git@...'"
         pbs3.git.clone("--recurse-submodules", "-j8", remote_url, "summer_experimenter")
         os.chdir("summer_experimenter")
 
@@ -232,7 +233,7 @@ def experimenter(
                         continue
 
                     bn, full_hash = commits_to_run.popleft()
-                    remote_url = pbs3.git.remote("get-url", bn.split("/")[0])
+                    remote_url = pbs3.git.remote("get-url", bn.split("/")[0]).strip()
                     assert not remote_url.startswith("http"), "use ssh address 'git@...'"
                     print(f"submit for gpu {cuda_id}")
                     a_fut = executor.submit(
