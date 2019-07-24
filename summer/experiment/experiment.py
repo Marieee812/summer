@@ -38,7 +38,7 @@ class Experiment(ExperimentBase):
 
         self.depth = 5
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=2, padding=True, batch_norm=False, up_mode="upconv"
+            in_channels=1, n_classes=1, depth=self.depth, wf=6, padding=True, batch_norm=False, up_mode="upsample"
         )
 
         self.train_dataset = Fluo_N2DH_SIM(one=True, two=False, labeled_only=True, transform=self.train_transform)
