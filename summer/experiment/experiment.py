@@ -36,7 +36,7 @@ class Experiment(ExperimentBase):
             assert model_checkpoint.exists(), model_checkpoint
             assert model_checkpoint.is_file(), model_checkpoint
 
-        self.depth = 3
+        self.depth = 5
         self.model = UNet(
             in_channels=1, n_classes=1, depth=self.depth, wf=2, padding=True, batch_norm=False, up_mode="upsample"
         )
@@ -46,7 +46,7 @@ class Experiment(ExperimentBase):
         test_ds = Fluo_N2DH_GOWT1(one=False, two=True, labeled_only=True, transform=self.eval_transform)
         self.test_dataset = test_ds if test_dataset is None else test_dataset
         self.max_validation_samples = 10
-        self.only_eval_where_true = False
+        self.only_eval_where_true = True
 
         self.batch_size = 1
         self.eval_batch_size = 1
