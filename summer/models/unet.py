@@ -56,26 +56,6 @@ class UNet(nn.Module):
     
          return self.last(x)
 
-    # experiment below (attempt to add skip connections)
-    #def forward(self, x):
-    #    blocks = []
-    #    for i, down in enumerate(self.down_path):
-    #        x = down(x)
-    #        if i != len(self.down_path) - 1:
-    #            blocks.append(x)
-    #            x = F.max_pool2d(x, 2)
-#
- #       z = 1
- #       for i, up in enumerate(self.up_path):
- #           x = up(x, blocks[-i - 1])
- #           if z == 1:
- #               x += blocks[1]
- #           if z == 2:
- #               x += blocks[0]
- #           z += 1
-
-#        return self.last(x)
-
 
 class UNetConvBlock(nn.Module):
     def __init__(self, in_size, out_size, padding, batch_norm):
