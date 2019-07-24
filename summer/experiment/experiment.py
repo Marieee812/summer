@@ -36,7 +36,7 @@ class Experiment(ExperimentBase):
             assert model_checkpoint.exists(), model_checkpoint
             assert model_checkpoint.is_file(), model_checkpoint
 
-        self.depth = 3      # add depth?
+        self.depth = 3  
         self.model = UNet(
             in_channels=1, n_classes=1, depth=self.depth, wf=2, padding=True, batch_norm=False, up_mode="upsample"
         )
@@ -63,18 +63,18 @@ class Experiment(ExperimentBase):
     def train_transform(
         self, img: Image.Image, seg: Image.Image, stat: DatasetStat
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        # tmethod = random.choice(
-        #     [
-        #         Image.FLIP_LEFT_RIGHT,
-        #         Image.FLIP_TOP_BOTTOM,
-        #         Image.ROTATE_90,
-        #         Image.ROTATE_180,
-        #         Image.ROTATE_270,
-        #         Image.TRANSPOSE,
-        #     ]
-        # )
-        # img = img.transpose(tmethod)
-        # seg = seg.transpose(tmethod)
+         tmethod = random.choice(
+              [
+                  Image.FLIP_LEFT_RIGHT,
+                  Image.FLIP_TOP_BOTTOM,
+                  Image.ROTATE_90,
+                  Image.ROTATE_180,
+                  Image.ROTATE_270,
+                  Image.TRANSPOSE,
+              ]
+          )
+          img = img.transpose(tmethod)
+          seg = seg.transpose(tmethod)
 
         img, seg = self.to_tensor(img, seg, stat)
 
