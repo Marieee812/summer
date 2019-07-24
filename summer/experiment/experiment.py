@@ -24,6 +24,10 @@ from summer.experiment.base import ExperimentBase, eps_for_precision, ACCURACY_N
 from summer.models.unet import UNet
 from summer.utils.stat import DatasetStat
 
+# Less deep -> shaper, and takes less time. 3 is nice! 
+# More filter layers -> more information, better maching (6 to 8 good approaches)
+# Batch number to 1, as it will iterate more times (more probable to converge!)
+# Eval the loss function only where the ground true is true so it doesn't stop unless all the cells are detected 
 
 class Experiment(ExperimentBase):
     def __init__(
@@ -38,7 +42,7 @@ class Experiment(ExperimentBase):
 
         self.depth = 3
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=6, padding=True, batch_norm=False, up_mode="upconv"
+            in_channels=1, n_classes=1, depth=self.depth, wf=8, padding=True, batch_norm=False, up_mode="upconv"
         )
 
         self.train_dataset = Fluo_N2DH_SIM(one=True, two=False, labeled_only=True, transform=self.train_transform)
@@ -46,7 +50,7 @@ class Experiment(ExperimentBase):
         test_ds = Fluo_N2DH_GOWT1(one=False, two=True, labeled_only=True, transform=self.eval_transform)
         self.test_dataset = test_ds if test_dataset is None else test_dataset
         self.max_validation_samples = 10
-        self.only_eval_where_true = False
+        self.only_eval_where_true = True
 
         self.batch_size = 1
         self.eval_batch_size = 1

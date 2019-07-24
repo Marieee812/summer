@@ -52,7 +52,7 @@ class UNet(nn.Module):
                 x = F.max_pool2d(x, 2)
 
         for i, up in enumerate(self.up_path):
-            x = up(x, blocks[-i - 1])
+            x = up(x, blocks[-i - 1]) + blocks[-i - 2]
 
         return self.last(x)
 
