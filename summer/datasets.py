@@ -14,7 +14,7 @@ from zipfile import ZipFile
 
 from summer.utils.stat import DatasetStat, compute_stat
 
-# The three friends where here
+
 
 class CellTrackingChallengeDataset(Dataset):
     download_link: str
