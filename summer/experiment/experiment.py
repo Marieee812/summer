@@ -64,18 +64,18 @@ class Experiment(ExperimentBase):
         self, img: Image.Image, seg: Image.Image, stat: DatasetStat
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         
-        #tmethod = random.choice(
-        #    [
-        #        Image.FLIP_LEFT_RIGHT,
-        #        Image.FLIP_TOP_BOTTOM,
-        #        Image.ROTATE_90,
-        #        Image.ROTATE_180,
-        #        Image.ROTATE_270,
-        #        Image.TRANSPOSE,
-        #    ]
-        #)
-        #img = img.transpose(tmethod)
-        #seg = seg.transpose(tmethod)
+        tmethod = random.choice(
+            [
+                Image.FLIP_LEFT_RIGHT,
+                Image.FLIP_TOP_BOTTOM,
+                Image.ROTATE_90,
+                Image.ROTATE_180,
+                Image.ROTATE_270,
+                Image.TRANSPOSE,
+            ]
+        )
+        img = img.transpose(tmethod)
+        seg = seg.transpose(tmethod)
 
         img, seg = self.to_tensor(img, seg, stat)
 
