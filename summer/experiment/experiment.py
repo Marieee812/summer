@@ -36,12 +36,12 @@ class Experiment(ExperimentBase):
             assert model_checkpoint.exists(), model_checkpoint
             assert model_checkpoint.is_file(), model_checkpoint
 
-        self.depth = 5
+        self.depth = 10
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=2, padding=True, batch_norm=True, up_mode="upsample"
+            in_channels=1, n_classes=1, depth=self.depth, wf=6, padding=True, batch_norm=True, up_mode="upsample"
         )
 
-        self.train_dataset = Fluo_N2DH_SIM(one=True, two=False, labeled_only=True, transform=self.train_transform)
+        self.train_dataset = Fluo_N2DH_SIM(one=True, two=True, labeled_only=True, transform=self.train_transform)
         self.valid_dataset = Fluo_N2DH_GOWT1(one=True, two=False, labeled_only=True, transform=self.eval_transform)
         test_ds = Fluo_N2DH_GOWT1(one=False, two=True, labeled_only=True, transform=self.eval_transform)
         self.test_dataset = test_ds if test_dataset is None else test_dataset
@@ -55,7 +55,7 @@ class Experiment(ExperimentBase):
         self.optimizer_cls = torch.optim.Adam
         self.optimizer_kwargs = {"lr": 1e-5, "eps": eps_for_precision[self.precision]}
         # self.max_num_epochs = 50
-        self.max_num_epochs = 200
+        self.max_num_epochs = 100
 
         self.model_checkpoint = model_checkpoint
         self.add_in_name = add_in_name
