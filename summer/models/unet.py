@@ -62,12 +62,12 @@ class UNetConvBlock(nn.Module):
         super(UNetConvBlock, self).__init__()
         block = []
 
-        block.append(nn.Conv2d(in_size, out_size, kernel_size=3, padding=int(padding)))
+        block.append(nn.Conv2d(in_size, out_size, kernel_size=5, padding=int(padding)))
         block.append(nn.ReLU())
         if batch_norm:
             block.append(nn.BatchNorm2d(out_size))
 
-        block.append(nn.Conv2d(out_size, out_size, kernel_size=3, padding=int(padding)))
+        block.append(nn.Conv2d(out_size, out_size, kernel_size=5, padding=int(padding)))
         block.append(nn.ReLU())
         if batch_norm:
             block.append(nn.BatchNorm2d(out_size))
@@ -102,7 +102,7 @@ class UNetUpBlock(nn.Module):
         up = self.up(x)
         crop1 = self.center_crop(bridge, up.shape[2:])
 
-        #out = torch.cat([up, crop1],1)
-        out = self.conv_block(up)
+        out = torch.cat([up, crop1],1)
+        out = self.conv_block(out)
 
         return out
