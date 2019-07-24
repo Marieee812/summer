@@ -41,8 +41,8 @@ class Experiment(ExperimentBase):
             in_channels=1, n_classes=1, depth=self.depth, wf=4, padding=True, batch_norm=True, up_mode="upsample"
         )
 
-        self.train_dataset = Fluo_N2DH_GOWT1(one=True, two=False, labeled_only=True, transform=self.train_transform)[1:]
-        self.valid_dataset = Fluo_N2DH_GOWT1(one=True, two=False, labeled_only=True, transform=self.eval_transform)[0]
+        self.train_dataset = Fluo_N2DH_SIM(one=True, two=False, labeled_only=True, transform=self.train_transform)
+        self.valid_dataset = Fluo_N2DH_GOWT1(one=True, two=False, labeled_only=True, transform=self.eval_transform)
         test_ds = Fluo_N2DH_GOWT1(one=False, two=True, labeled_only=True, transform=self.eval_transform)
         self.test_dataset = test_ds if test_dataset is None else test_dataset
         self.max_validation_samples = 10
@@ -63,6 +63,10 @@ class Experiment(ExperimentBase):
     def train_transform(
         self, img: Image.Image, seg: Image.Image, stat: DatasetStat
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+
+        img = img.to(dtype=torch.float)
+        img += torch.zeros_like(img).normal_(std=0.1)
+        img = img.to(dtype=self.precision)
         
         tmethod = random.choice(
             [
@@ -76,6 +80,8 @@ class Experiment(ExperimentBase):
         )
         img = img.transpose(tmethod)
         seg = seg.transpose(tmethod)
+
+
 
         img, seg = self.to_tensor(img, seg, stat)
 
