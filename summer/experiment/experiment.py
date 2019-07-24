@@ -54,7 +54,8 @@ class Experiment(ExperimentBase):
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.optimizer_cls = torch.optim.Adam
         self.optimizer_kwargs = {"lr": 1e-5, "eps": eps_for_precision[self.precision]}
-        self.max_num_epochs = 50
+        # self.max_num_epochs = 50
+        self.max_num_epochs = 200
 
         self.model_checkpoint = model_checkpoint
         self.add_in_name = add_in_name
