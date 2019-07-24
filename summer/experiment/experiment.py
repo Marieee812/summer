@@ -48,7 +48,7 @@ class Experiment(ExperimentBase):
         self.max_validation_samples = 10
         self.only_eval_where_true = False
 
-        self.batch_size = 1
+        self.batch_size = 10
         self.eval_batch_size = 1
         self.precision = torch.float
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
