@@ -36,9 +36,9 @@ class Experiment(ExperimentBase):
             assert model_checkpoint.exists(), model_checkpoint
             assert model_checkpoint.is_file(), model_checkpoint
 
-        self.depth = 5
+        self.depth = 6
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=6, padding=True, batch_norm=False, up_mode="upsample"
+            in_channels=1, n_classes=1, depth=self.depth, wf=6, padding=True, batch_norm=False, up_mode="upconv"
         )
 
         self.train_dataset = Fluo_N2DH_SIM(one=True, two=False, labeled_only=True, transform=self.train_transform)
@@ -48,7 +48,7 @@ class Experiment(ExperimentBase):
         self.max_validation_samples = 10
         self.only_eval_where_true = False
 
-        self.batch_size = 1
+        self.batch_size = 2
         self.eval_batch_size = 1
         self.precision = torch.float
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
