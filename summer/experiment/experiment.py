@@ -38,7 +38,7 @@ class Experiment(ExperimentBase):
 
         self.depth = 3  
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=2, padding=True, batch_norm=False, up_mode="upsample"
+           # in_channels=1, n_classes=1, depth=self.depth, wf=2, padding=True, batch_norm=False, up_mode="upsample"
         )
 
         self.train_dataset = Fluo_N2DH_SIM(one=True, two=False, labeled_only=True, transform=self.train_transform)
@@ -63,7 +63,7 @@ class Experiment(ExperimentBase):
     def train_transform(
         self, img: Image.Image, seg: Image.Image, stat: DatasetStat
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-
+'''
         tmethod = random.choice(
             [
                 Image.FLIP_LEFT_RIGHT,
@@ -76,7 +76,7 @@ class Experiment(ExperimentBase):
         )
         img = img.transpose(tmethod)
         seg = seg.transpose(tmethod)
-
+'''
         img, seg = self.to_tensor(img, seg, stat)
 
         # if self.precision == torch.half and img.get_device() == -1:
