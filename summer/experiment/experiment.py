@@ -38,7 +38,7 @@ class Experiment(ExperimentBase):
 
         self.depth = 5
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=4, padding=True, batch_norm=True, up_mode="upsample"
+            in_channels=1, n_classes=1, depth=self.depth, wf=3, padding=True, batch_norm=True, up_mode="upsample"
         )
 
         self.train_dataset = Fluo_N2DH_SIM(one=True, two=True, labeled_only=True, transform=self.train_transform)
@@ -53,7 +53,7 @@ class Experiment(ExperimentBase):
         self.precision = torch.float
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.optimizer_cls = torch.optim.Adam
-        self.optimizer_kwargs = {"lr": 1e-3, "eps": eps_for_precision[self.precision]}
+        self.optimizer_kwargs = {"lr": 1e-4, "eps": eps_for_precision[self.precision]}
         # self.max_num_epochs = 50
         self.max_num_epochs = 100
 
