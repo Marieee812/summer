@@ -90,7 +90,7 @@ class UNetUpBlock(nn.Module):
                 nn.Conv2d(in_size, 2 * out_size, kernel_size=1),
             )
 
-        self.conv_block = UNetConvBlock(2*in_size, out_size, padding, batch_norm)
+        self.conv_block = UNetConvBlock(in_size, out_size, padding, batch_norm)
 
     def center_crop(self, layer, target_size):
         _, _, layer_height, layer_width = layer.size()
@@ -103,6 +103,6 @@ class UNetUpBlock(nn.Module):
         crop1 = self.center_crop(bridge, up.shape[2:])
 
         out = torch.cat([up, crop1],1)
-        out = self.conv_block(out)
+        out = self.conv_block(up)
 
         return out
