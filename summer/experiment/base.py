@@ -69,6 +69,8 @@ class ExperimentBase:
 
     score_function: Callable[[Engine], float]
 
+    add_in_name: Optional[str] = None
+
     def __init__(self):
         self.log_config = LogConfig()
         assert self.log_config.log_scalars_every[1] in ("iterations", "epochs"), self.log_config.log_scalars_every[1]
@@ -76,9 +78,10 @@ class ExperimentBase:
 
         self.commit_hash = pbs3.git("rev-parse", "--verify", "HEAD").stdout
         self.commit_subject = pbs3.git.log("-1", "--pretty=%B").stdout.split("\n")[0]
-        self.branch_name = (
-            pbs3.git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip().replace("'", "").replace('"', "")
-        )
+        if self.add_in_name is None:
+            self.add_in_name = (
+                pbs3.git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip().replace("'", "").replace('"', "")
+            )
         if self.valid_dataset == self.test_dataset and self.max_validation_samples >= len(self.test_dataset):
             raise ValueError("no samples for testing left")
 
@@ -110,7 +113,7 @@ class ExperimentBase:
         short_commit_subject = (
             self.commit_subject[5:15].replace(":", "").replace("'", "").replace('"', "").replace(" ", "_")
         )
-        self.name = f"{datetime.now().strftime('%y-%m-%d_%H-%M')}_{self.commit_hash[:7]}_{self.branch_name}_{short_commit_subject}"
+        self.name = f"{datetime.now().strftime('%y-%m-%d_%H-%M')}_{self.commit_hash[:7]}_{self.add_in_name}_{short_commit_subject}"
         self.logger = logging.getLogger(self.name)
         self.log_config.log_dir /= self.name
         self.log_config.log_dir.mkdir(parents=True, exist_ok=True)
