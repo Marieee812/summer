@@ -25,9 +25,11 @@ from summer.models.unet import UNet
 from summer.utils.stat import DatasetStat
 
 # Less deep -> shaper, and takes less time. 3 is nice! 
-# More filter layers -> more information, better maching (6 to 8 good approaches)
+# More filter layers -> more information, better maching (6 good approaches) if it is too big it can run out of GPU!
 # Batch number to 1, as it will iterate more times (more probable to converge!)
 # Eval the loss function only where the ground true is true so it doesn't stop unless all the cells are detected 
+# Adam optimizer gets the learning rate as: weight of the update. with Adam you set the max learning rate, but 
+# it can "learn" smaller ones. 
 
 class Experiment(ExperimentBase):
     def __init__(
@@ -40,12 +42,12 @@ class Experiment(ExperimentBase):
             assert model_checkpoint.exists(), model_checkpoint
             assert model_checkpoint.is_file(), model_checkpoint
 
-        self.depth = 3
+        self.depth = 5
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=4, padding=True, batch_norm=False, up_mode="upconv"
+            in_channels=1, n_classes=1, depth=self.depth, wf=6, padding=True, batch_norm=False, up_mode="upsample"
         )
 
-        self.train_dataset = Fluo_N2DH_SIM(one=True, two=False, labeled_only=True, transform=self.train_transform)
+        self.train_dataset = Fluo_N2DH_SIM(one=True, two=True, labeled_only=True, transform=self.train_transform)
         self.valid_dataset = Fluo_N2DH_GOWT1(one=True, two=False, labeled_only=True, transform=self.eval_transform)
         test_ds = Fluo_N2DH_GOWT1(one=False, two=True, labeled_only=True, transform=self.eval_transform)
         self.test_dataset = test_ds if test_dataset is None else test_dataset
@@ -57,7 +59,7 @@ class Experiment(ExperimentBase):
         self.precision = torch.float
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.optimizer_cls = torch.optim.Adam
-        self.optimizer_kwargs = {"lr": 1e-5, "eps": eps_for_precision[self.precision]}
+        self.optimizer_kwargs = {"lr": 3e-4, "eps": eps_for_precision[self.precision]}
         self.max_num_epochs = 50
 
         self.model_checkpoint = model_checkpoint
