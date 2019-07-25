@@ -53,9 +53,7 @@ class UNet(nn.Module):
 
         for i, up in enumerate(self.up_path):
             x = up(x, blocks[-i - 1])
-
         return self.last(x)
-
 
 class UNetConvBlock(nn.Module):
     def __init__(self, in_size, out_size, padding, batch_norm):
@@ -71,7 +69,6 @@ class UNetConvBlock(nn.Module):
         block.append(nn.ReLU())
         if batch_norm:
             block.append(nn.BatchNorm2d(out_size))
-
         self.block = nn.Sequential(*block)
 
     def forward(self, x):
