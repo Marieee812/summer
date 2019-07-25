@@ -46,7 +46,7 @@ class Experiment(ExperimentBase):
         test_ds = Fluo_N2DH_GOWT1(one=True, two=True, labeled_only=True, transform=self.eval_transform)
         self.test_dataset = test_ds if test_dataset is None else test_dataset
         self.max_validation_samples = 10
-        self.only_eval_where_true = True
+        self.only_eval_where_true = False
 
         self.batch_size = 1
         self.eval_batch_size = 1
@@ -78,14 +78,14 @@ class Experiment(ExperimentBase):
 
          img, seg = self.to_tensor(img, seg, stat)
 
-         # if self.precision == torch.half and img.get_device() == -1:
-             # meager support for cpu half tensor
-         #     img = img.to(dtype=torch.float)
-         #     img += torch.zeros_like(img).normal_(std=0.1)
-         #     img = img.to(dtype=self.precision)
-         # else:
-         #     img += torch.zeros_like(img).normal_(std=0.1)
-         #
+         if self.precision == torch.half and img.get_device() == -1:
+             meager support for cpu half tensor
+             img = img.to(dtype=torch.float)
+             img += torch.zeros_like(img).normal_(std=0.1)
+             img = img.to(dtype=self.precision)
+         else:
+             img += torch.zeros_like(img).normal_(std=0.1)
+
          return img, seg
 
     def eval_transform(
