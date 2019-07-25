@@ -37,9 +37,9 @@ class Experiment(ExperimentBase):
             assert model_checkpoint.exists(), model_checkpoint
             assert model_checkpoint.is_file(), model_checkpoint
 
-        self.depth = 3
+        self.depth = 4
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=4, padding=True, batch_norm=True, up_mode="upsample"
+            in_channels=1, n_classes=1, depth=self.depth, wf=5, padding=True, batch_norm=True, up_mode="upsample"
         )
 
         self.train_dataset = Fluo_N2DH_SIM(one=True, two=False, labeled_only=True, transform=self.train_transform)
@@ -54,7 +54,7 @@ class Experiment(ExperimentBase):
         self.precision = torch.float
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.optimizer_cls = torch.optim.Adam
-        self.optimizer_kwargs = {"lr": 1e-5, "eps": eps_for_precision[self.precision]}
+        self.optimizer_kwargs = {"lr": 0.0003, "eps": eps_for_precision[self.precision]}
         self.max_num_epochs = 100
 
         self.model_checkpoint = model_checkpoint
@@ -70,7 +70,6 @@ class Experiment(ExperimentBase):
                 Image.FLIP_LEFT_RIGHT,
                 Image.FLIP_TOP_BOTTOM,
                 Image.TRANSPOSE,
-            ]
         )
 
         img.rotate(random.randint(0, 360))
@@ -82,10 +81,10 @@ class Experiment(ExperimentBase):
         if self.precision == torch.half and img.get_device() == -1:
              # meager support for cpu half tensor
             img = img.to(dtype=torch.float)
-            img += torch.zeros_like(img).normal_(std=0.3)
+            img += torch.zeros_like(img).normal_(std=0.1)
             img = img.to(dtype=self.precision)
         else:
-            img += torch.zeros_like(img).normal_(std=0.3)
+            img += torch.zeros_like(img).normal_(std=0.1)
 
         return img, seg
 
