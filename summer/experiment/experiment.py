@@ -35,10 +35,10 @@ class Experiment(ExperimentBase):
         if model_checkpoint is not None:
             assert model_checkpoint.exists(), model_checkpoint
             assert model_checkpoint.is_file(), model_checkpoint
-
+###
         self.depth = 6
         self.model = UNet(
-            in_channels=1, n_classes=2, depth=self.depth, wf=4, padding=True, batch_norm=True, up_mode="upconv"
+            in_channels=1, n_classes=1, depth=self.depth, wf=5, padding=True, batch_norm=True, up_mode="upconv"
        )
 
         self.train_dataset = Fluo_N2DH_SIM(one=True, two=True, labeled_only=True, transform=self.train_transform)
