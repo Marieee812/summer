@@ -29,7 +29,8 @@ from summer.utils.stat import DatasetStat
 # Batch number to 1, as it will iterate more times (more probable to converge!)
 # Eval the loss function only where the ground true is true so it doesn't stop unless all the cells are detected 
 # Adam optimizer gets the learning rate as: weight of the update. with Adam you set the max learning rate, but 
-# it can "learn" smaller ones. 
+# it can "learn" smaller ones. SO BIG LEARNING RATE IS CHANGING A LOT
+# The only eval when true will give high accuracy
 
 class Experiment(ExperimentBase):
     def __init__(
