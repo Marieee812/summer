@@ -101,7 +101,7 @@ class UNetUpBlock(nn.Module):
     def forward(self, x, bridge):
         up = self.up(x)
         crop1 = self.center_crop(bridge, up.shape[2:])
-        # Concatenate with the correspondent downsample one
+        # Concatenate with the correspondent downsample
         out = torch.cat([up, crop1], 1) 
         out = self.conv_block(out)
 
