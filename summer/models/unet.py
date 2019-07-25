@@ -43,17 +43,17 @@ class UNet(nn.Module):
 
         self.last = nn.Conv2d(prev_channels, n_classes, kernel_size=1)
 
-     def forward(self, x):
-         blocks = []
-         for i, down in enumerate(self.down_path):
-             x = down(x)
-             if i != len(self.down_path) - 1:
-                 blocks.append(x)
-                 x = F.max_pool2d(x, 2)
+    def forward(self, x):
+        blocks = []
+        for i, down in enumerate(self.down_path):
+            x = down(x)
+            if i != len(self.down_path) - 1:
+                blocks.append(x)
+                x = F.max_pool2d(x, 2)
 
-         for i, up in enumerate(self.up_path):
-             x = up(x, blocks[-i - 1])
-         return self.last(x)
+        for i, up in enumerate(self.up_path):
+            x = up(x, blocks[-i - 1])
+        return self.last(x)
 
 class UNetConvBlock(nn.Module):
     def __init__(self, in_size, out_size, padding, batch_norm):
