@@ -73,7 +73,6 @@ class Experiment(ExperimentBase):
             ]
         )
 
-        import random
         img.rotate(random.randint(0, 360))
         img = img.transpose(tmethod)
         seg = seg.transpose(tmethod)
