@@ -31,15 +31,15 @@ class UNet(nn.Module):
         prev_channels = in_channels
         self.down_path = nn.ModuleList()
         for i in range(depth):
-            channels = 2 ** (wf + i)
-            self.down_path.append(UNetConvBlock(prev_channels, channels, padding, batch_norm))
-            prev_channels = channels
+            filters = 2 ** (wf + i)
+            self.down_path.append(UNetConvBlock(prev_channels, filters, padding, batch_norm))
+            prev_channels = filters
 
         self.up_path = nn.ModuleList()
         for i in reversed(range(depth - 1)):
-            channels = 2 ** (wf + i)
-            self.up_path.append(UNetUpBlock(prev_channels, channels, up_mode, padding, batch_norm))
-            prev_channels = channels
+            filters = 2 ** (wf + i)
+            self.up_path.append(UNetUpBlock(prev_channels, filters, up_mode, padding, batch_norm))
+            prev_channels = filters
 
         self.last = nn.Conv2d(prev_channels, n_classes, kernel_size=1)
 
@@ -98,7 +98,7 @@ class UNetUpBlock(nn.Module):
     def forward(self, x, bridge):
         up = self.up(x)
         crop1 = self.center_crop(bridge, up.shape[2:])
-        out = torch.cat([up, crop1],1)
-        out = self.conv_block(up)
+        out = torch.cat([up, crop1], 1)
+        out = self.conv_block(out)
 
         return out
