@@ -101,7 +101,7 @@ class ExperimentBase:
             seg = seg[:, :, cut2 // 2 : -((cut2 + 1) // 2)]
 
         img = img.clamp(stat.x_min, stat.x_max)
-        # img = TF.normalize(img, mean=[stat.x_mean], std=[stat.x_std])
+        img = TF.normalize(img, mean=[stat.x_mean], std=[stat.x_std])
 
         return img.to(dtype=self.precision), (seg[0] != 0).to(dtype=self.precision)
 
