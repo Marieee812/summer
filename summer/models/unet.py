@@ -109,7 +109,7 @@ if __name__ == '__main__':
     from summer.experiment.experiment import Experiment
 
     exp = Experiment()
-
+    #Hey
     # init model
     model = UNet(
         in_channels=1, n_classes=1, depth=5, wf=2, padding=True, batch_norm=True, up_mode="upsample"
