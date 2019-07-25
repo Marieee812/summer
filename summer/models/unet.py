@@ -31,15 +31,15 @@ class UNet(nn.Module):
         prev_channels = in_channels
         self.down_path = nn.ModuleList()
         for i in range(depth):
-            channels = 2 ** (wf + i)
-            self.down_path.append(UNetConvBlock(prev_channels, channels, padding, batch_norm))
-            prev_channels = channels
+            filters = 2 ** (wf + i)
+            self.down_path.append(UNetConvBlock(prev_channels, filters, padding, batch_norm))
+            prev_channels = filters
 
         self.up_path = nn.ModuleList()
         for i in reversed(range(depth - 1)):
-            channels = 2 ** (wf + i)
-            self.up_path.append(UNetUpBlock(prev_channels, channels, up_mode, padding, batch_norm))
-            prev_channels = channels
+            filters = 2 ** (wf + i)
+            self.up_path.append(UNetUpBlock(prev_channels, filters, up_mode, padding, batch_norm))
+            prev_channels = filters
 
         self.last = nn.Conv2d(prev_channels, n_classes, kernel_size=1)
 
@@ -56,7 +56,6 @@ class UNet(nn.Module):
 
         return self.last(x)
 
-
 class UNetConvBlock(nn.Module):
     def __init__(self, in_size, out_size, padding, batch_norm):
         super(UNetConvBlock, self).__init__()
@@ -71,7 +70,6 @@ class UNetConvBlock(nn.Module):
         block.append(nn.ReLU())
         if batch_norm:
             block.append(nn.BatchNorm2d(out_size))
-
         self.block = nn.Sequential(*block)
 
     def forward(self, x):
@@ -105,3 +103,19 @@ class UNetUpBlock(nn.Module):
         out = self.conv_block(out)
 
         return out
+
+
+if __name__ == '__main__':
+    from summer.experiment.experiment import Experiment
+
+    exp = Experiment()
+
+    # init model
+    model = UNet(
+        in_channels=1, n_classes=1, depth=5, wf=2, padding=True, batch_norm=True, up_mode="upsample"
+    )
+    img, seq = exp.train_dataset[0]
+    img = img[None, :, :]
+    y = model.forward(img)
+    print(y)
+
