@@ -99,6 +99,6 @@ class UNetUpBlock(nn.Module):
         up = self.up(x)
         crop1 = self.center_crop(bridge, up.shape[2:])
         out = torch.cat([up, crop1], 1)
-        out = self.conv_block(up)
+        out = self.conv_block(out)
 
         return out
