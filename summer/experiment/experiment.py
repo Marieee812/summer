@@ -70,6 +70,7 @@ class Experiment(ExperimentBase):
                 Image.FLIP_LEFT_RIGHT,
                 Image.FLIP_TOP_BOTTOM,
                 Image.TRANSPOSE,
+            ]
         )
 
         img.rotate(random.randint(0, 360))
