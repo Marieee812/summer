@@ -81,7 +81,7 @@ class UNetUpBlock(nn.Module):
     def __init__(self, in_size, out_size, up_mode, padding, batch_norm):
         super(UNetUpBlock, self).__init__()
         if up_mode == "upconv":
-            self.up = nn.ConvTranspose2d(in_size, 2 * out_size, kernel_size=2, stride=2)
+            self.up = nn.ConvTranspose2d(in_size, out_size, kernel_size=2, stride=2)
         elif up_mode == "upsample":
             self.up = nn.Sequential(
                 nn.Upsample(mode="bilinear", scale_factor=2, align_corners=True),
