@@ -38,7 +38,7 @@ class Experiment(ExperimentBase):
 
         self.depth = 5
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=2, padding=True, batch_norm=True, up_mode="upsample"
+            in_channels=1, n_classes=1, depth=self.depth, wf=2, padding=True, batch_norm=True, up_mode="upconv"
         )
 
         self.train_dataset = Fluo_N2DH_SIM(one=True, two=True, labeled_only=True, transform=self.train_transform)
@@ -86,7 +86,7 @@ class Experiment(ExperimentBase):
         # else:
         #     img += torch.zeros_like(img).normal_(std=0.1)
 
-        return img, seg
+         return img, seg
 
     def eval_transform(
         self, img: Image.Image, seg: Image.Image, stat: DatasetStat
