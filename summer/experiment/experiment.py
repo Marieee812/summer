@@ -54,7 +54,6 @@ class Experiment(ExperimentBase):
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.optimizer_cls = torch.optim.Adam
         self.optimizer_kwargs = {"lr": 1e-5, "eps": eps_for_precision[self.precision]}
-        # self.max_num_epochs = 50
         self.max_num_epochs = 100
 
         self.model_checkpoint = model_checkpoint
@@ -64,18 +63,18 @@ class Experiment(ExperimentBase):
     def train_transform(
         self, img: Image.Image, seg: Image.Image, stat: DatasetStat
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        tmethod = random.choice(
-            [
-                Image.FLIP_LEFT_RIGHT,
-                Image.FLIP_TOP_BOTTOM,
-                Image.ROTATE_90,
-                Image.ROTATE_180,
-                Image.ROTATE_270,
-                Image.TRANSPOSE,
-            ]
-        )
-        img = img.transpose(tmethod)
-        seg = seg.transpose(tmethod)
+         tmethod = random.choice(
+             [
+                 Image.FLIP_LEFT_RIGHT,
+                 Image.FLIP_TOP_BOTTOM,
+                 Image.ROTATE_90,
+                 Image.ROTATE_180,
+                 Image.ROTATE_270,
+                 Image.TRANSPOSE,
+             ]
+         )
+         img = img.transpose(tmethod)
+         seg = seg.transpose(tmethod)
 
         img, seg = self.to_tensor(img, seg, stat)
 
@@ -103,3 +102,4 @@ def run(add_in_name: Optional[str] = None):
     assert torch.cuda.device_count() <= 1, "visible cuda devices not limited!"
     exp = Experiment(add_in_name=add_in_name)
     exp.run()
+
