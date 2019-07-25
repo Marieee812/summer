@@ -82,10 +82,10 @@ class Experiment(ExperimentBase):
         if self.precision == torch.half and img.get_device() == -1:
              # meager support for cpu half tensor
             img = img.to(dtype=torch.float)
-            img += torch.zeros_like(img).normal_(std=0.1)
+            img += torch.zeros_like(img).normal_(std=0.3)
             img = img.to(dtype=self.precision)
         else:
-            img += torch.zeros_like(img).normal_(std=0.1)
+            img += torch.zeros_like(img).normal_(std=0.3)
 
         return img, seg
 
