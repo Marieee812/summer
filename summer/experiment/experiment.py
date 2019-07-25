@@ -36,9 +36,9 @@ class Experiment(ExperimentBase):
             assert model_checkpoint.exists(), model_checkpoint
             assert model_checkpoint.is_file(), model_checkpoint
 
-        self.depth = 6
+        self.depth = 7
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=5, padding=True, batch_norm=True, up_mode="upconv"
+            in_channels=1, n_classes=1, depth=self.depth, wf=4, padding=True, batch_norm=True, up_mode="upconv"
        )
 
         self.train_dataset = Fluo_N2DH_SIM(one=True, two=True, labeled_only=True, transform=self.train_transform)
@@ -53,7 +53,7 @@ class Experiment(ExperimentBase):
         self.precision = torch.float
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.optimizer_cls = torch.optim.Adam
-        self.optimizer_kwargs = {"lr": 1e-5, "eps": eps_for_precision[self.precision]}
+        self.optimizer_kwargs = {"lr": 1e-3, "eps": eps_for_precision[self.precision]}
         self.max_num_epochs = 100
 
         self.model_checkpoint = model_checkpoint
