@@ -1,5 +1,6 @@
 import random
 
+import numpy
 import torch
 import torch.nn
 import torch.optim
@@ -38,7 +39,7 @@ class Experiment(ExperimentBase):
 
         self.depth = 3
         self.model = UNet(
-            in_channels=1, n_classes=1, depth=self.depth, wf=4, padding=True, batch_norm=True, up_mode="upconv"
+            in_channels=1, n_classes=1, depth=self.depth, wf=4, padding=True, batch_norm=True, up_mode="upsample"
         )
 
         self.train_dataset = Fluo_N2DH_SIM(one=True, two=False, labeled_only=True, transform=self.train_transform)
@@ -68,15 +69,14 @@ class Experiment(ExperimentBase):
             [
                 Image.FLIP_LEFT_RIGHT,
                 Image.FLIP_TOP_BOTTOM,
-                Image.ROTATE_90,
-                Image.ROTATE_180,
-                Image.ROTATE_270,
                 Image.TRANSPOSE,
             ]
         )
+
+        import random
+        img.rotate(random.randint(0, 360))
         img = img.transpose(tmethod)
         seg = seg.transpose(tmethod)
-
 
         img, seg = self.to_tensor(img, seg, stat)
 
