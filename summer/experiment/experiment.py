@@ -46,7 +46,7 @@ class Experiment(ExperimentBase):
         test_ds = Fluo_N2DH_GOWT1(one=True, two=True, labeled_only=True, transform=self.eval_transform)
         self.test_dataset = test_ds if test_dataset is None else test_dataset
         self.max_validation_samples = 10
-        self.only_eval_where_true = True
+        self.only_eval_where_true = False
 
         self.batch_size = 1
         self.eval_batch_size = 1
