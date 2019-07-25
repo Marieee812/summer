@@ -76,7 +76,7 @@ class Experiment(ExperimentBase):
          img = img.transpose(tmethod)
          seg = seg.transpose(tmethod)
 
-        img, seg = self.to_tensor(img, seg, stat)
+         img, seg = self.to_tensor(img, seg, stat)
 
         # if self.precision == torch.half and img.get_device() == -1:
         #     # meager support for cpu half tensor
