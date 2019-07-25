@@ -53,7 +53,7 @@ class Experiment(ExperimentBase):
         self.precision = torch.float
         self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.optimizer_cls = torch.optim.Adam
-        self.optimizer_kwargs = {"lr": 1e-5, "eps": eps_for_precision[self.precision]}
+        self.optimizer_kwargs = {"lr": 1e-2, "eps": eps_for_precision[self.precision]}
         self.max_num_epochs = 100
 
         self.model_checkpoint = model_checkpoint
@@ -78,14 +78,14 @@ class Experiment(ExperimentBase):
 
          img, seg = self.to_tensor(img, seg, stat)
 
-         if self.precision == torch.half and img.get_device() == -1:
-             meager support for cpu half tensor
-             img = img.to(dtype=torch.float)
-             img += torch.zeros_like(img).normal_(std=0.1)
-             img = img.to(dtype=self.precision)
-         else:
-             img += torch.zeros_like(img).normal_(std=0.1)
-
+         # if self.precision == torch.half and img.get_device() == -1:
+             # meager support for cpu half tensor
+         #     img = img.to(dtype=torch.float)
+         #     img += torch.zeros_like(img).normal_(std=0.1)
+         #     img = img.to(dtype=self.precision)
+         # else:
+         #     img += torch.zeros_like(img).normal_(std=0.1)
+         #
          return img, seg
 
     def eval_transform(
