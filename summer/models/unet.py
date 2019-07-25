@@ -52,7 +52,7 @@ class UNet(nn.Module):
                 x = F.max_pool2d(x, 2)
 
         for i, up in enumerate(self.up_path):
-            x = up(x, blocks[-i - 1]) + blocks[-i - 2]
+            x = up(x, blocks[-i - 1])
 
         return self.last(x)
 
@@ -101,6 +101,8 @@ class UNetUpBlock(nn.Module):
     def forward(self, x, bridge):
         up = self.up(x)
         crop1 = self.center_crop(bridge, up.shape[2:])
-        out = self.conv_block(up)
+        # Concatenate with the correspondent downsample one
+        out = torch.cat([up, crop1], 1) 
+        out = self.conv_block(out)
 
         return out
