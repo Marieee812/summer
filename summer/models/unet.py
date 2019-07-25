@@ -43,20 +43,6 @@ class UNet(nn.Module):
 
         self.last = nn.Conv2d(prev_channels, n_classes, kernel_size=1)
 
-    # def forward(self, x):
-    #     blocks = []
-    #     for i, down in enumerate(self.down_path):
-    #         x = down(x)
-    #         if i != len(self.down_path) - 1:
-    #             blocks.append(x)
-    #             x = F.max_pool2d(x, 2)
-    #
-    #     for i, up in enumerate(self.up_path):
-    #         x = up(x, blocks[-i - 1])
-    #
-    #     return self.last(x)
-
-    # experiment below (attempt to add skip connections)
     def forward(self, x):
         blocks = []
         for i, down in enumerate(self.down_path):
@@ -65,14 +51,8 @@ class UNet(nn.Module):
                 blocks.append(x)
                 x = F.max_pool2d(x, 2)
 
-        z = 1
         for i, up in enumerate(self.up_path):
             x = up(x, blocks[-i - 1])
-            if z == 1:
-                x += blocks[1]
-            if z == 2:
-                x += blocks[0]
-            z += 1
 
         return self.last(x)
 
@@ -124,3 +104,19 @@ class UNetUpBlock(nn.Module):
         out = self.conv_block(up)
 
         return out
+
+
+if __name__ == '__main__':
+    from summer.experiment.experiment import Experiment
+
+    exp = Experiment()
+
+    # init model
+    model = UNet(
+        in_channels=1, n_classes=1, depth=5, wf=2, padding=True, batch_norm=True, up_mode="upsample"
+    )
+    img, seq = exp.train_dataset[0]
+    img = img[None, :, :]
+    y = model.forward(img)
+    print(y)
+
