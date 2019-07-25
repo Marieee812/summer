@@ -52,7 +52,7 @@ class Experiment(ExperimentBase):
         self.eval_batch_size = 1
         self.precision = torch.float
         # self.loss_fn = torch.nn.BCEWithLogitsLoss()
-        self.loss_fn = torch.nn.NLLLoss()
+        self.loss_fn = torch.nn.BCEWithLogitsLoss()
         self.optimizer_cls = torch.optim.Adam
         self.optimizer_kwargs = {"lr": 1e-5, "eps": eps_for_precision[self.precision]}
         self.max_num_epochs = 100
