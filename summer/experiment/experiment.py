@@ -72,7 +72,7 @@ class Experiment(ExperimentBase):
                  Image.ROTATE_270,
                  Image.TRANSPOSE,
              ]
-         ) #hey
+         )
          img = img.transpose(tmethod)
          seg = seg.transpose(tmethod)
 
