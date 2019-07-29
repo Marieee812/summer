@@ -101,7 +101,7 @@ def _run_in_clean_lab(remote_url: str, add_in_name: str, full_hash: str, cuda_id
             msg = out.stdout.decode("utf-8").replace("'", '"')
             pbs3.git("tag", "-a", tag, "-m", f"'{msg}'", full_hash)
             pbs3.git("push", "origin", tag)
-            logger.debug("pushed tag '%s' to '%s' at %s", tag, "origin", full_hash)
+            logger.debug("pushed tag '%s' to '%s' at %s", tag, remote_url, full_hash)
         except Exception as e:
             logger.exception(e)
             raise e
@@ -239,7 +239,7 @@ def experimenter(
                     a_fut = executor.submit(
                         _run_in_clean_lab,
                         remote_url=remote_url,
-                        add_in_name=bn.split("/")[1],
+                        add_in_name="/".join(bn.split("/")[1:]),
                         full_hash=full_hash,
                         cuda_id=cuda_id,
                     )
